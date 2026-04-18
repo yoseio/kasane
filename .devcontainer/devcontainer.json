@@ -1,0 +1,51 @@
+{
+  "name": "Kasane",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "context": "..",
+    "args": {
+      "SOUFFLE_VERSION": "2.5"
+    }
+  },
+  "remoteUser": "vscode",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "init": true,
+  "containerEnv": {
+    "CCACHE_DIR": "/home/vscode/.cache/ccache",
+    "CARGO_HOME": "/home/vscode/.cargo",
+    "RUSTUP_HOME": "/home/vscode/.rustup"
+  },
+  "mounts": [
+    "source=kasane-ccache,target=/home/vscode/.cache/ccache,type=volume",
+    "source=kasane-cargo-registry,target=/home/vscode/.cargo/registry,type=volume",
+    "source=kasane-cargo-git,target=/home/vscode/.cargo/git,type=volume"
+  ],
+  "postCreateCommand": "bash .devcontainer/post-create.sh",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "EditorConfig.EditorConfig",
+        "llvm-vs-code-extensions.vscode-clangd",
+        "ms-vscode.cmake-tools",
+        "ms-vscode.cpptools",
+        "openai.chatgpt",
+        "rust-lang.rust-analyzer",
+        "tamasfe.even-better-toml",
+        "vadimcn.vscode-lldb"
+      ],
+      "settings": {
+        "cmake.configureOnOpen": false,
+        "cmake.useCMakePresets": "always",
+        "cmake.generator": "Ninja",
+        "editor.formatOnSave": true,
+        "C_Cpp.intelliSenseEngine": "disabled",
+        "clangd.arguments": [
+          "--background-index",
+          "--header-insertion=never"
+        ],
+        "rust-analyzer.check.command": "clippy",
+        "rust-analyzer.cargo.allFeatures": true
+      }
+    }
+  }
+}

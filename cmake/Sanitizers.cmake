@@ -1,0 +1,15 @@
+function(kasane_enable_sanitizers target)
+  if(MSVC)
+    return()
+  endif()
+
+  if(KASANE_ENABLE_ASAN)
+    target_compile_options(${target} INTERFACE -fsanitize=address)
+    target_link_options(${target} INTERFACE -fsanitize=address)
+  endif()
+
+  if(KASANE_ENABLE_UBSAN)
+    target_compile_options(${target} INTERFACE -fsanitize=undefined)
+    target_link_options(${target} INTERFACE -fsanitize=undefined)
+  endif()
+endfunction()

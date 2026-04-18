@@ -1,0 +1,23 @@
+# CMake
+build/
+CMakeCache.txt
+CMakeFiles/
+Testing/
+install_manifest.txt
+compile_commands.json
+
+# Rust
+target/
+
+# IDE / editor
+.vscode/
+.idea/
+.cache/
+*.swp
+.DS_Store
+
+# Analysis artifacts
+facts/
+out/
+*.facts
+*.csv

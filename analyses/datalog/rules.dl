@@ -1,0 +1,27 @@
+.decl func(name:symbol, line:number)
+.input func
+
+.decl param(func:symbol, var:symbol, idx:number)
+.input param
+
+.decl assign(func:symbol, dst:symbol, src:symbol)
+.input assign
+
+.decl callsite(func:symbol, line:number, callee:symbol)
+.input callsite
+
+.decl return_var(func:symbol, var:symbol)
+.input return_var
+
+.decl tainted(func:symbol, var:symbol)
+tainted(F, V) :- param(F, V, _).
+tainted(F, D) :- assign(F, D, S), tainted(F, S).
+
+.decl tainted_return(func:symbol)
+tainted_return(F) :- return_var(F, V), tainted(F, V).
+
+.decl dangerous_call(func:symbol, line:number, callee:symbol)
+dangerous_call(F, L, C) :- callsite(F, L, C), C = "strcpy".
+
+.output tainted_return
+.output dangerous_call

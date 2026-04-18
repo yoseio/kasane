@@ -1,0 +1,69 @@
+{
+  "version": 6,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 25,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "base",
+      "hidden": true,
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/cmake/${presetName}",
+      "cacheVariables": {
+        "CMAKE_EXPORT_COMPILE_COMMANDS": "ON",
+        "CMAKE_CXX_STANDARD": "20",
+        "KASANE_BUILD_TESTS": "ON",
+        "KASANE_WARNINGS_AS_ERRORS": "OFF"
+      }
+    },
+    {
+      "name": "dev",
+      "inherits": "base",
+      "displayName": "Kasane development",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "KASANE_ENABLE_ASAN": "ON",
+        "KASANE_ENABLE_UBSAN": "ON"
+      }
+    },
+    {
+      "name": "ci",
+      "inherits": "base",
+      "displayName": "Kasane CI",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "KASANE_WARNINGS_AS_ERRORS": "ON",
+        "KASANE_ENABLE_ASAN": "OFF",
+        "KASANE_ENABLE_UBSAN": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "dev",
+      "configurePreset": "dev"
+    },
+    {
+      "name": "ci",
+      "configurePreset": "ci"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "dev",
+      "configurePreset": "dev",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ci",
+      "configurePreset": "ci",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

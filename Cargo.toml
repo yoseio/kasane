@@ -1,0 +1,9 @@
+[workspace]
+resolver = "2"
+members = [
+  "engine/ffi/rust",
+  "apps/cli",
+  "apps/daemon",
+  "apps/research_shell",
+  "integration/e2e",
+]
