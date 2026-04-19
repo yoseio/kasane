@@ -24,4 +24,9 @@ Instead it follows the intended long-term flow:
 3. Evaluate Datalog.
 4. Surface results via a Rust application.
 
+The versioned extraction contract for those normalized facts lives in
+`schemas/facts/v0.md`. The current bootstrap demo is intentionally smaller, but
+new extractors and analyses should converge on that canonical schema rather than
+growing one-off ad hoc relations.
+
 That gives you a path to scale without baking an in-memory graph design into every layer.

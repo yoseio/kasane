@@ -1,0 +1,47 @@
+// Kasane canonical fact schema v0
+// Extraction layer only. Derived relations such as taint, local flow,
+// summaries, points-to, or CPG overlays belong in analyses/.
+
+.type Id = number
+.type Text = symbol
+.type Bool = number
+.type Index = number
+
+// 1. Build and source context
+.decl file(file_id:Id, path:Text, content_sha256:Text)
+.decl translation_unit(tu_id:Id, root_file_id:Id, working_dir:Text, compiler:Text, target_triple:Text, command_hash:Text)
+.decl compile_arg(tu_id:Id, arg_index:Index, arg:Text)
+.decl tu_file(tu_id:Id, file_id:Id)
+.decl include_edge(src_file_id:Id, dst_file_id:Id, line:number, is_system:Bool)
+.decl macro(macro_id:Id, name:Text, is_function_like:Bool, arity:number)
+.decl macro_expansion(expansion_id:Id, macro_id:Id)
+
+// 2. Types and declarations
+.decl type(type_id:Id, kind:Text, printed:Text, canonical:Text, size_bits:number, align_bits:number)
+.decl type_edge(type_id:Id, role:Text, slot:number, other_type_id:Id)
+.decl decl(decl_id:Id, tu_id:Id, kind:Text, name:Text, qualified_name:Text, usr:Text, type_id:Id, parent_decl_id:Id)
+.decl function_decl(decl_id:Id, mangled_name:Text, is_definition:Bool, linkage:Text, storage:Text, is_variadic:Bool)
+.decl param_decl(decl_id:Id, function_decl_id:Id, param_index:Index)
+.decl global_var_decl(decl_id:Id, tu_id:Id, storage:Text, linkage:Text, has_initializer:Bool)
+.decl local_var_decl(decl_id:Id, function_decl_id:Id, storage:Text, has_initializer:Bool)
+.decl record_decl(decl_id:Id, tag_kind:Text, is_definition:Bool)
+.decl field_decl(decl_id:Id, record_decl_id:Id, field_index:Index)
+
+// 3. Syntax and control-flow nodes
+.decl node(node_id:Id, tu_id:Id, function_decl_id:Id, category:Text, kind:Text, type_id:Id)
+.decl ast_edge(parent_node_id:Id, child_index:Index, child_node_id:Id, label:Text)
+.decl cfg_edge(src_node_id:Id, dst_node_id:Id, edge_kind:Text)
+
+// 4. Semantic primitives for analysis
+.decl ref(node_id:Id, decl_id:Id, role:Text)
+.decl assign(node_id:Id, lhs_node_id:Id, rhs_node_id:Id, op_kind:Text)
+.decl call(node_id:Id, callee_decl_id:Id, callee_name:Text, dispatch_kind:Text)
+.decl call_arg(call_node_id:Id, arg_index:Index, arg_node_id:Id)
+.decl return_value(return_node_id:Id, expr_node_id:Id)
+.decl literal(node_id:Id, literal_kind:Text, raw_text:Text)
+.decl member_access(node_id:Id, base_node_id:Id, field_decl_id:Id, access_kind:Text)
+
+// 5. Locations, stability, and diagnostics
+.decl span(entity_space:Text, entity_id:Id, file_id:Id, start_byte:number, end_byte:number, start_line:number, start_column:number, end_line:number, end_column:number)
+.decl fingerprint(entity_space:Text, entity_id:Id, stable_hash:Text)
+.decl diag(tu_id:Id, file_id:Id, line:number, column:number, severity:Text, message:Text)

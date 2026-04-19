@@ -21,3 +21,5 @@ facts/
 out/
 *.facts
 *.csv
+
+!schemas/facts/

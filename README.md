@@ -8,6 +8,7 @@ This repository is organized around architecture layers rather than language alo
 - `frontends/` holds code ingestion and extraction frontends.
 - `analyses/` holds Datalog rules and higher-level analysis packs.
 - `apps/` holds user-facing Rust applications.
+- `schemas/` holds versioned contracts for extracted facts and interchange formats.
 - `integration/` and `testdata/` hold end-to-end coverage and reusable fixtures.
 
 The included minimum demo is intentionally small:
@@ -18,6 +19,10 @@ The included minimum demo is intentionally small:
 
 The repository also includes a build-aware extraction path driven by
 `compile_commands.json` for real CMake projects.
+
+The canonical extraction contract is versioned under `schemas/facts/`.
+Start with `schemas/facts/README.md` for the bootstrap-vs-canonical overview and
+`schemas/facts/v0.md` for the relation-level v0 contract.
 
 
 ## Devcontainer
