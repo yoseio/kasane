@@ -1,0 +1,21 @@
+.once
+
+.decl configured_execution_plan()
+configured_execution_plan() :-
+  execution_plan(_, _, _, _).
+
+.decl active_execution_plan(mode:Text, time_budget_secs:number, traversal_depth:Index, emit_traces:Bool)
+active_execution_plan(Mode, TimeBudgetSecs, TraversalDepth, EmitTraces) :-
+  execution_plan(Mode, TimeBudgetSecs, TraversalDepth, EmitTraces).
+active_execution_plan("default", 0, 8, 0) :-
+  !configured_execution_plan().
+
+.decl max_summary_traversal_depth(depth:Index)
+max_summary_traversal_depth(Depth) :-
+  active_execution_plan(_, _, Depth, _).
+
+.decl emit_summary_traces()
+emit_summary_traces() :-
+  active_execution_plan(_, _, _, 1).
+
+.output active_execution_plan

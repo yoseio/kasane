@@ -2,3 +2,6 @@
 name = "kasane-e2e"
 version = "0.1.0"
 edition = "2021"
+
+[dependencies]
+kasane-cli = { path = "../../apps/cli" }

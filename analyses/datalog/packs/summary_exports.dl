@@ -5,3 +5,8 @@
 .output summary_sanitizes
 .output summary_allocates
 .output summary_frees_arg
+.output summary_param_to_return_trace
+.output summary_param_to_sink_trace
+.output summary_sanitizes_trace
+.output summary_allocates_trace
+.output summary_frees_arg_trace

@@ -12,3 +12,6 @@
 .input call_arg
 .input return_expr
 .input type_of
+
+.decl execution_plan(mode:Text, time_budget_secs:number, traversal_depth:Index, emit_traces:Bool)
+.input execution_plan

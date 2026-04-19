@@ -10,25 +10,37 @@ return_expr_decl(ReturnNode, Decl) :-
   return_expr(ReturnNode, ExprNode),
   ref(ExprNode, Decl, "read").
 
-.decl summary_param_to_return(function_name:Text, param_index:Index)
-summary_param_to_return(Func, ParamIndex) :-
+.decl summary_param_to_return_depth(function_name:Text, param_index:Index, depth:Index)
+summary_param_to_return_depth(Func, ParamIndex, 0) :-
   function_symbol(F, Func),
   param_decl(ParamDecl, F, ParamIndex),
   return_expr_decl(ReturnNode, Decl),
   node(ReturnNode, _, F, _, _, _),
   local_flow_before(ReturnNode, ParamDecl, Decl).
-summary_param_to_return(Func, ParamIndex) :-
+summary_param_to_return_depth(Func, ParamIndex, NextDepth) :-
+  max_summary_traversal_depth(MaxDepth),
   function_symbol(F, Func),
   param_decl(ParamDecl, F, ParamIndex),
   return_expr(ReturnNode, CallNode),
   node(ReturnNode, _, F, _, _, _),
   call(CallNode, _, Callee, _),
-  summary_param_to_return(Callee, CalleeParamIndex),
+  summary_param_to_return_depth(Callee, CalleeParamIndex, Depth),
+  NextDepth = Depth + 1,
+  NextDepth <= MaxDepth,
   call_arg_decl(CallNode, CalleeParamIndex, Decl),
   local_flow_before(ReturnNode, ParamDecl, Decl).
 
-.decl summary_param_to_sink(function_name:Text, param_index:Index, sink_name:Text, sink_arg_index:Index)
-summary_param_to_sink(Func, ParamIndex, Sink, SinkArgIndex) :-
+.decl summary_param_to_return(function_name:Text, param_index:Index)
+summary_param_to_return(Func, ParamIndex) :-
+  summary_param_to_return_depth(Func, ParamIndex, _).
+
+.decl summary_param_to_return_trace(function_name:Text, param_index:Index, depth:Index)
+summary_param_to_return_trace(Func, ParamIndex, Depth) :-
+  emit_summary_traces(),
+  summary_param_to_return_depth(Func, ParamIndex, Depth).
+
+.decl summary_param_to_sink_depth(function_name:Text, param_index:Index, sink_name:Text, sink_arg_index:Index, depth:Index)
+summary_param_to_sink_depth(Func, ParamIndex, Sink, SinkArgIndex, 0) :-
   function_symbol(F, Func),
   param_decl(ParamDecl, F, ParamIndex),
   call(CallNode, _, Sink, _),
@@ -36,17 +48,29 @@ summary_param_to_sink(Func, ParamIndex, Sink, SinkArgIndex) :-
   sink_api_arg(Sink, SinkArgIndex),
   call_arg_decl(CallNode, SinkArgIndex, Decl),
   local_flow_before(CallNode, ParamDecl, Decl).
-summary_param_to_sink(Func, ParamIndex, Sink, SinkArgIndex) :-
+summary_param_to_sink_depth(Func, ParamIndex, Sink, SinkArgIndex, NextDepth) :-
+  max_summary_traversal_depth(MaxDepth),
   function_symbol(F, Func),
   param_decl(ParamDecl, F, ParamIndex),
   call(CallNode, _, Callee, _),
   node(CallNode, _, F, _, _, _),
-  summary_param_to_sink(Callee, CalleeParamIndex, Sink, SinkArgIndex),
+  summary_param_to_sink_depth(Callee, CalleeParamIndex, Sink, SinkArgIndex, Depth),
+  NextDepth = Depth + 1,
+  NextDepth <= MaxDepth,
   call_arg_decl(CallNode, CalleeParamIndex, Decl),
   local_flow_before(CallNode, ParamDecl, Decl).
 
-.decl summary_sanitizes(function_name:Text, param_index:Index)
-summary_sanitizes(Func, ParamIndex) :-
+.decl summary_param_to_sink(function_name:Text, param_index:Index, sink_name:Text, sink_arg_index:Index)
+summary_param_to_sink(Func, ParamIndex, Sink, SinkArgIndex) :-
+  summary_param_to_sink_depth(Func, ParamIndex, Sink, SinkArgIndex, _).
+
+.decl summary_param_to_sink_trace(function_name:Text, param_index:Index, sink_name:Text, sink_arg_index:Index, depth:Index)
+summary_param_to_sink_trace(Func, ParamIndex, Sink, SinkArgIndex, Depth) :-
+  emit_summary_traces(),
+  summary_param_to_sink_depth(Func, ParamIndex, Sink, SinkArgIndex, Depth).
+
+.decl summary_sanitizes_depth(function_name:Text, param_index:Index, depth:Index)
+summary_sanitizes_depth(Func, ParamIndex, 0) :-
   function_symbol(F, Func),
   param_decl(ParamDecl, F, ParamIndex),
   call(CallNode, _, Callee, _),
@@ -54,29 +78,53 @@ summary_sanitizes(Func, ParamIndex) :-
   sanitizer_api_arg(Callee, CalleeParamIndex),
   call_arg_decl(CallNode, CalleeParamIndex, Decl),
   local_flow_before(CallNode, ParamDecl, Decl).
-summary_sanitizes(Func, ParamIndex) :-
+summary_sanitizes_depth(Func, ParamIndex, NextDepth) :-
+  max_summary_traversal_depth(MaxDepth),
   function_symbol(F, Func),
   param_decl(ParamDecl, F, ParamIndex),
   call(CallNode, _, Callee, _),
   node(CallNode, _, F, _, _, _),
-  summary_sanitizes(Callee, CalleeParamIndex),
+  summary_sanitizes_depth(Callee, CalleeParamIndex, Depth),
+  NextDepth = Depth + 1,
+  NextDepth <= MaxDepth,
   call_arg_decl(CallNode, CalleeParamIndex, Decl),
   local_flow_before(CallNode, ParamDecl, Decl).
 
-.decl summary_allocates(function_name:Text)
-summary_allocates(Func) :-
+.decl summary_sanitizes(function_name:Text, param_index:Index)
+summary_sanitizes(Func, ParamIndex) :-
+  summary_sanitizes_depth(Func, ParamIndex, _).
+
+.decl summary_sanitizes_trace(function_name:Text, param_index:Index, depth:Index)
+summary_sanitizes_trace(Func, ParamIndex, Depth) :-
+  emit_summary_traces(),
+  summary_sanitizes_depth(Func, ParamIndex, Depth).
+
+.decl summary_allocates_depth(function_name:Text, depth:Index)
+summary_allocates_depth(Func, 0) :-
   function_symbol(F, Func),
   call(CallNode, _, Callee, _),
   node(CallNode, _, F, _, _, _),
   allocator_api(Callee).
-summary_allocates(Func) :-
+summary_allocates_depth(Func, NextDepth) :-
+  max_summary_traversal_depth(MaxDepth),
   function_symbol(F, Func),
   call(CallNode, _, Callee, _),
   node(CallNode, _, F, _, _, _),
-  summary_allocates(Callee).
+  summary_allocates_depth(Callee, Depth),
+  NextDepth = Depth + 1,
+  NextDepth <= MaxDepth.
 
-.decl summary_frees_arg(function_name:Text, param_index:Index)
-summary_frees_arg(Func, ParamIndex) :-
+.decl summary_allocates(function_name:Text)
+summary_allocates(Func) :-
+  summary_allocates_depth(Func, _).
+
+.decl summary_allocates_trace(function_name:Text, depth:Index)
+summary_allocates_trace(Func, Depth) :-
+  emit_summary_traces(),
+  summary_allocates_depth(Func, Depth).
+
+.decl summary_frees_arg_depth(function_name:Text, param_index:Index, depth:Index)
+summary_frees_arg_depth(Func, ParamIndex, 0) :-
   function_symbol(F, Func),
   param_decl(ParamDecl, F, ParamIndex),
   call(CallNode, _, Callee, _),
@@ -84,14 +132,26 @@ summary_frees_arg(Func, ParamIndex) :-
   frees_api_arg(Callee, CalleeParamIndex),
   call_arg_decl(CallNode, CalleeParamIndex, Decl),
   local_flow_before(CallNode, ParamDecl, Decl).
-summary_frees_arg(Func, ParamIndex) :-
+summary_frees_arg_depth(Func, ParamIndex, NextDepth) :-
+  max_summary_traversal_depth(MaxDepth),
   function_symbol(F, Func),
   param_decl(ParamDecl, F, ParamIndex),
   call(CallNode, _, Callee, _),
   node(CallNode, _, F, _, _, _),
-  summary_frees_arg(Callee, CalleeParamIndex),
+  summary_frees_arg_depth(Callee, CalleeParamIndex, Depth),
+  NextDepth = Depth + 1,
+  NextDepth <= MaxDepth,
   call_arg_decl(CallNode, CalleeParamIndex, Decl),
   local_flow_before(CallNode, ParamDecl, Decl).
+
+.decl summary_frees_arg(function_name:Text, param_index:Index)
+summary_frees_arg(Func, ParamIndex) :-
+  summary_frees_arg_depth(Func, ParamIndex, _).
+
+.decl summary_frees_arg_trace(function_name:Text, param_index:Index, depth:Index)
+summary_frees_arg_trace(Func, ParamIndex, Depth) :-
+  emit_summary_traces(),
+  summary_frees_arg_depth(Func, ParamIndex, Depth).
 
 .decl call_sinks_arg(call_node_id:Id, arg_index:Index)
 call_sinks_arg(CallNode, ArgIndex) :-

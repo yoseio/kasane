@@ -1,5 +1,6 @@
 .include "../../schemas/facts/v0.dl"
 .include "inputs.dl"
+.include "lib/execution_plan.dl"
 .include "lib/names.dl"
 .include "lib/local_flow.dl"
 .include "lib/api_models.dl"
