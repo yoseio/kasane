@@ -3,6 +3,12 @@
 .decl function_name(function_decl_id:Id, name:Text)
 function_name(F, Name) :- decl(F, _, "function", Name, _, _, _, _).
 
+.decl function_symbol(function_decl_id:Id, symbol:Text)
+function_symbol(F, Qualified) :-
+  decl(F, _, "function", _, Qualified, _, _, _),
+  Qualified != "".
+function_symbol(F, Name) :- decl(F, _, "function", Name, "", _, _, _).
+
 .decl variable_name(decl_id:Id, name:Text)
 variable_name(D, Name) :- decl(D, _, "param", Name, _, _, _, _).
 variable_name(D, Name) :- decl(D, _, "local_var", Name, _, _, _, _).

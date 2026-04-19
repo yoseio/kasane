@@ -20,3 +20,4 @@ target/
 out/
 *.facts
 *.csv
+!testdata/regression/wrapper_sink/*.facts

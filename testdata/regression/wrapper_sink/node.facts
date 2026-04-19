@@ -1,0 +1,11 @@
+node:wrapper_entry	tu:3	decl:copy_wrapper	synthetic	FunctionEntry	-
+node:wrapper_init	tu:3	decl:copy_wrapper	stmt	DeclStmt	-
+node:wrapper_call	tu:3	decl:copy_wrapper	expr	CallExpr	type:dst
+node:wrapper_exit	tu:3	decl:copy_wrapper	synthetic	FunctionExit	-
+node:wrapper_arg0	tu:3	decl:copy_wrapper	expr	DeclRefExpr	type:dst
+node:wrapper_arg1	tu:3	decl:copy_wrapper	expr	DeclRefExpr	type:src
+node:user_entry	tu:3	decl:copy_user	synthetic	FunctionEntry	-
+node:user_call	tu:3	decl:copy_user	expr	CallExpr	type:dst
+node:user_exit	tu:3	decl:copy_user	synthetic	FunctionExit	-
+node:user_arg0	tu:3	decl:copy_user	expr	DeclRefExpr	type:dst
+node:user_arg1	tu:3	decl:copy_user	expr	DeclRefExpr	type:src

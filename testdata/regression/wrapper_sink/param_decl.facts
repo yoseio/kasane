@@ -1,0 +1,4 @@
+decl:wrapper_dst	decl:copy_wrapper	0
+decl:wrapper_src	decl:copy_wrapper	1
+decl:user_dst	decl:copy_user	0
+decl:user_src	decl:copy_user	1

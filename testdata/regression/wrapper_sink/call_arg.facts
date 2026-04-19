@@ -1,0 +1,4 @@
+node:wrapper_call	0	node:wrapper_arg0
+node:wrapper_call	1	node:wrapper_arg1
+node:user_call	0	node:user_arg0
+node:user_call	1	node:user_arg1

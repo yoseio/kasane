@@ -9,11 +9,25 @@ function_exit(F, N) :- node(N, _, F, "synthetic", "FunctionExit", _).
 .decl local_copy(node_id:Id, src_decl_id:Id, dst_decl_id:Id)
 local_copy(Node, Src, Dst) :- def(Node, Dst), use(Node, Src).
 
+.decl local_flow_before(node_id:Id, source_param_decl_id:Id, decl_id:Id)
+.decl local_flow_after(node_id:Id, source_param_decl_id:Id, decl_id:Id)
+
 .decl tainted_before(node_id:Id, decl_id:Id)
 .decl tainted_after(node_id:Id, decl_id:Id)
 
-tainted_before(Entry, Param) :- function_entry(F, Entry), param_decl(Param, F, _).
-tainted_before(Succ, Decl) :- tainted_after(Node, Decl), cfg_edge(Node, Succ, _).
+local_flow_before(Entry, Param, Param) :-
+  function_entry(F, Entry),
+  param_decl(Param, F, _).
+local_flow_before(Succ, SourceParam, Decl) :-
+  local_flow_after(Node, SourceParam, Decl),
+  cfg_edge(Node, Succ, _).
 
-tainted_after(Node, Decl) :- tainted_before(Node, Decl).
-tainted_after(Node, Dst) :- local_copy(Node, Src, Dst), tainted_before(Node, Src).
+local_flow_after(Node, SourceParam, Decl) :-
+  local_flow_before(Node, SourceParam, Decl).
+local_flow_after(Node, SourceParam, Dst) :-
+  local_copy(Node, Src, Dst),
+  local_flow_before(Node, SourceParam, Src).
+
+tainted_before(Node, Decl) :- local_flow_before(Node, _, Decl).
+
+tainted_after(Node, Decl) :- local_flow_after(Node, _, Decl).

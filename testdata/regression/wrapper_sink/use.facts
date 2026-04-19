@@ -1,0 +1,5 @@
+node:wrapper_init	decl:wrapper_src
+node:wrapper_call	decl:wrapper_dst
+node:wrapper_call	decl:wrapper_tmp
+node:user_call	decl:user_dst
+node:user_call	decl:user_src

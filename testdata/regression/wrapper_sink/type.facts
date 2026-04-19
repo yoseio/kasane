@@ -1,0 +1,4 @@
+type:fn_wrapper	builtin	int	int	32	32
+type:fn_user	builtin	int	int	32	32
+type:dst	pointer	char *	char *	64	64
+type:src	pointer	const char *	const char *	64	64

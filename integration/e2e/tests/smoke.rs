@@ -107,6 +107,13 @@ fn regression_fixture_captures_argument_local_sink_flow() {
         dangerous_call.contains("copy_user\tstrcpy"),
         "unsafe C API analysis should flag strcpy"
     );
+
+    let summary_param_to_sink = std::fs::read_to_string(out_dir.join("summary_param_to_sink.csv"))
+        .expect("summary_param_to_sink output");
+    assert!(
+        summary_param_to_sink.contains("copy_user\t1\tstrcpy\t1"),
+        "summary should capture src -> strcpy via the direct sink model"
+    );
 }
 
 #[test]
@@ -119,5 +126,37 @@ fn regression_fixture_captures_local_return_flow() {
     assert!(
         tainted_return.contains("id\ty"),
         "tainted return should report x -> y -> return flow"
+    );
+
+    let summary_param_to_return =
+        std::fs::read_to_string(out_dir.join("summary_param_to_return.csv"))
+            .expect("summary_param_to_return output");
+    assert!(
+        summary_param_to_return.contains("id\t0"),
+        "summary should capture x -> return for the local helper"
+    );
+}
+
+#[test]
+fn regression_fixture_captures_wrapper_summary_flow() {
+    let fixture = repo_root().join("testdata/regression/wrapper_sink");
+    let out_dir = run_souffle_fixture(&fixture);
+
+    let summary_param_to_sink = std::fs::read_to_string(out_dir.join("summary_param_to_sink.csv"))
+        .expect("summary_param_to_sink output");
+    assert!(
+        summary_param_to_sink.contains("copy_wrapper\t1\tstrcpy\t1"),
+        "wrapper summary should capture src -> strcpy"
+    );
+    assert!(
+        summary_param_to_sink.contains("copy_user\t1\tstrcpy\t1"),
+        "caller summary should inherit the helper's sink summary"
+    );
+
+    let tainted_sink =
+        std::fs::read_to_string(out_dir.join("tainted_sink.csv")).expect("tainted_sink output");
+    assert!(
+        tainted_sink.contains("copy_user\tcopy_wrapper\t1\tsrc"),
+        "tainted sink should propagate through the wrapper call"
     );
 }

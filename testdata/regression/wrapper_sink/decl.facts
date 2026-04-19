@@ -1,0 +1,7 @@
+decl:copy_wrapper	tu:3	function	copy_wrapper	copy_wrapper		type:fn_wrapper	-
+decl:wrapper_dst	tu:3	param	dst	dst		type:dst	decl:copy_wrapper
+decl:wrapper_src	tu:3	param	src	src		type:src	decl:copy_wrapper
+decl:wrapper_tmp	tu:3	local_var	tmp	tmp		type:src	decl:copy_wrapper
+decl:copy_user	tu:3	function	copy_user	copy_user		type:fn_user	-
+decl:user_dst	tu:3	param	dst	dst		type:dst	decl:copy_user
+decl:user_src	tu:3	param	src	src		type:src	decl:copy_user

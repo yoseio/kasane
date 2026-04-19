@@ -1,0 +1,7 @@
+.once
+
+.output summary_param_to_return
+.output summary_param_to_sink
+.output summary_sanitizes
+.output summary_allocates
+.output summary_frees_arg

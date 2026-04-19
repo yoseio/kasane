@@ -1,0 +1,6 @@
+node:wrapper_call	type:dst
+node:wrapper_arg0	type:dst
+node:wrapper_arg1	type:src
+node:user_call	type:dst
+node:user_arg0	type:dst
+node:user_arg1	type:src

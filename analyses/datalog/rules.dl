@@ -2,5 +2,8 @@
 .include "inputs.dl"
 .include "lib/names.dl"
 .include "lib/local_flow.dl"
+.include "lib/api_models.dl"
+.include "lib/summaries.dl"
+.include "packs/summary_exports.dl"
 .include "packs/local_taint.dl"
 .include "packs/unsafe_c_api.dl"

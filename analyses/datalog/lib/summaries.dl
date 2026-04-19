@@ -1,0 +1,131 @@
+.once
+
+.decl call_arg_decl(call_node_id:Id, arg_index:Index, decl_id:Id)
+call_arg_decl(CallNode, ArgIndex, Decl) :-
+  call_arg(CallNode, ArgIndex, ArgNode),
+  ref(ArgNode, Decl, "read").
+
+.decl return_expr_decl(return_node_id:Id, decl_id:Id)
+return_expr_decl(ReturnNode, Decl) :-
+  return_expr(ReturnNode, ExprNode),
+  ref(ExprNode, Decl, "read").
+
+.decl summary_param_to_return(function_name:Text, param_index:Index)
+summary_param_to_return(Func, ParamIndex) :-
+  function_symbol(F, Func),
+  param_decl(ParamDecl, F, ParamIndex),
+  return_expr_decl(ReturnNode, Decl),
+  node(ReturnNode, _, F, _, _, _),
+  local_flow_before(ReturnNode, ParamDecl, Decl).
+summary_param_to_return(Func, ParamIndex) :-
+  function_symbol(F, Func),
+  param_decl(ParamDecl, F, ParamIndex),
+  return_expr(ReturnNode, CallNode),
+  node(ReturnNode, _, F, _, _, _),
+  call(CallNode, _, Callee, _),
+  summary_param_to_return(Callee, CalleeParamIndex),
+  call_arg_decl(CallNode, CalleeParamIndex, Decl),
+  local_flow_before(ReturnNode, ParamDecl, Decl).
+
+.decl summary_param_to_sink(function_name:Text, param_index:Index, sink_name:Text, sink_arg_index:Index)
+summary_param_to_sink(Func, ParamIndex, Sink, SinkArgIndex) :-
+  function_symbol(F, Func),
+  param_decl(ParamDecl, F, ParamIndex),
+  call(CallNode, _, Sink, _),
+  node(CallNode, _, F, _, _, _),
+  sink_api_arg(Sink, SinkArgIndex),
+  call_arg_decl(CallNode, SinkArgIndex, Decl),
+  local_flow_before(CallNode, ParamDecl, Decl).
+summary_param_to_sink(Func, ParamIndex, Sink, SinkArgIndex) :-
+  function_symbol(F, Func),
+  param_decl(ParamDecl, F, ParamIndex),
+  call(CallNode, _, Callee, _),
+  node(CallNode, _, F, _, _, _),
+  summary_param_to_sink(Callee, CalleeParamIndex, Sink, SinkArgIndex),
+  call_arg_decl(CallNode, CalleeParamIndex, Decl),
+  local_flow_before(CallNode, ParamDecl, Decl).
+
+.decl summary_sanitizes(function_name:Text, param_index:Index)
+summary_sanitizes(Func, ParamIndex) :-
+  function_symbol(F, Func),
+  param_decl(ParamDecl, F, ParamIndex),
+  call(CallNode, _, Callee, _),
+  node(CallNode, _, F, _, _, _),
+  sanitizer_api_arg(Callee, CalleeParamIndex),
+  call_arg_decl(CallNode, CalleeParamIndex, Decl),
+  local_flow_before(CallNode, ParamDecl, Decl).
+summary_sanitizes(Func, ParamIndex) :-
+  function_symbol(F, Func),
+  param_decl(ParamDecl, F, ParamIndex),
+  call(CallNode, _, Callee, _),
+  node(CallNode, _, F, _, _, _),
+  summary_sanitizes(Callee, CalleeParamIndex),
+  call_arg_decl(CallNode, CalleeParamIndex, Decl),
+  local_flow_before(CallNode, ParamDecl, Decl).
+
+.decl summary_allocates(function_name:Text)
+summary_allocates(Func) :-
+  function_symbol(F, Func),
+  call(CallNode, _, Callee, _),
+  node(CallNode, _, F, _, _, _),
+  allocator_api(Callee).
+summary_allocates(Func) :-
+  function_symbol(F, Func),
+  call(CallNode, _, Callee, _),
+  node(CallNode, _, F, _, _, _),
+  summary_allocates(Callee).
+
+.decl summary_frees_arg(function_name:Text, param_index:Index)
+summary_frees_arg(Func, ParamIndex) :-
+  function_symbol(F, Func),
+  param_decl(ParamDecl, F, ParamIndex),
+  call(CallNode, _, Callee, _),
+  node(CallNode, _, F, _, _, _),
+  frees_api_arg(Callee, CalleeParamIndex),
+  call_arg_decl(CallNode, CalleeParamIndex, Decl),
+  local_flow_before(CallNode, ParamDecl, Decl).
+summary_frees_arg(Func, ParamIndex) :-
+  function_symbol(F, Func),
+  param_decl(ParamDecl, F, ParamIndex),
+  call(CallNode, _, Callee, _),
+  node(CallNode, _, F, _, _, _),
+  summary_frees_arg(Callee, CalleeParamIndex),
+  call_arg_decl(CallNode, CalleeParamIndex, Decl),
+  local_flow_before(CallNode, ParamDecl, Decl).
+
+.decl call_sinks_arg(call_node_id:Id, arg_index:Index)
+call_sinks_arg(CallNode, ArgIndex) :-
+  call(CallNode, _, Callee, _),
+  sink_api_arg(Callee, ArgIndex).
+call_sinks_arg(CallNode, ArgIndex) :-
+  call(CallNode, _, Callee, _),
+  summary_param_to_sink(Callee, ArgIndex, _, _).
+
+.decl call_returns_arg(call_node_id:Id, arg_index:Index)
+call_returns_arg(CallNode, ArgIndex) :-
+  call(CallNode, _, Callee, _),
+  summary_param_to_return(Callee, ArgIndex).
+
+.decl call_sanitizes_arg(call_node_id:Id, arg_index:Index)
+call_sanitizes_arg(CallNode, ArgIndex) :-
+  call(CallNode, _, Callee, _),
+  sanitizer_api_arg(Callee, ArgIndex).
+call_sanitizes_arg(CallNode, ArgIndex) :-
+  call(CallNode, _, Callee, _),
+  summary_sanitizes(Callee, ArgIndex).
+
+.decl call_allocates(call_node_id:Id)
+call_allocates(CallNode) :-
+  call(CallNode, _, Callee, _),
+  allocator_api(Callee).
+call_allocates(CallNode) :-
+  call(CallNode, _, Callee, _),
+  summary_allocates(Callee).
+
+.decl call_frees_arg(call_node_id:Id, arg_index:Index)
+call_frees_arg(CallNode, ArgIndex) :-
+  call(CallNode, _, Callee, _),
+  frees_api_arg(Callee, ArgIndex).
+call_frees_arg(CallNode, ArgIndex) :-
+  call(CallNode, _, Callee, _),
+  summary_frees_arg(Callee, ArgIndex).

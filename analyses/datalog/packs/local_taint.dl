@@ -1,27 +1,29 @@
 .once
 
-.decl pointer_like_type(type_id:Id)
-pointer_like_type(T) :- type(T, "pointer", _, _, _, _).
-pointer_like_type(T) :- type(T, "array", _, _, _, _).
+.decl returned_decl(return_node_id:Id, decl_id:Id)
+returned_decl(ReturnNode, Decl) :-
+  return_expr(ReturnNode, ExprNode),
+  ref(ExprNode, Decl, "read").
+returned_decl(ReturnNode, Decl) :-
+  return_expr(ReturnNode, CallNode),
+  call_returns_arg(CallNode, ArgIndex),
+  call_arg_decl(CallNode, ArgIndex, Decl).
 
 .decl tainted_sink(function_name:Text, callee_name:Text, arg_index:Index, var_name:Text)
 tainted_sink(Func, Callee, ArgIndex, Var) :-
   call(CallNode, _, Callee, _),
   node(CallNode, _, F, _, _, _),
   function_name(F, Func),
-  call_arg(CallNode, ArgIndex, ArgNode),
-  type_of(ArgNode, TypeId),
-  pointer_like_type(TypeId),
-  ref(ArgNode, VarDecl, "read"),
+  call_sinks_arg(CallNode, ArgIndex),
+  call_arg_decl(CallNode, ArgIndex, VarDecl),
   tainted_before(CallNode, VarDecl),
   variable_name(VarDecl, Var).
 
 .decl tainted_return(function_name:Text, var_name:Text)
 tainted_return(Func, Var) :-
-  return_expr(ReturnNode, ExprNode),
+  returned_decl(ReturnNode, VarDecl),
   node(ReturnNode, _, F, _, _, _),
   function_name(F, Func),
-  ref(ExprNode, VarDecl, "read"),
   tainted_before(ReturnNode, VarDecl),
   variable_name(VarDecl, Var).
 

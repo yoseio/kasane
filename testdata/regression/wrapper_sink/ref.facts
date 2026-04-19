@@ -1,0 +1,4 @@
+node:wrapper_arg0	decl:wrapper_dst	read
+node:wrapper_arg1	decl:wrapper_tmp	read
+node:user_arg0	decl:user_dst	read
+node:user_arg1	decl:user_src	read

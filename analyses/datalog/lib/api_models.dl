@@ -1,0 +1,23 @@
+.once
+
+.decl banned_c_api(name:Text)
+banned_c_api("gets").
+banned_c_api("sprintf").
+banned_c_api("strcat").
+banned_c_api("strcpy").
+banned_c_api("vsprintf").
+
+.decl sink_api_arg(callee_name:Text, arg_index:Index)
+sink_api_arg("strcpy", 1).
+
+.decl allocator_api(callee_name:Text)
+allocator_api("calloc").
+allocator_api("malloc").
+allocator_api("realloc").
+allocator_api("strdup").
+
+.decl frees_api_arg(callee_name:Text, arg_index:Index)
+frees_api_arg("free", 0).
+
+.decl sanitizer_api_arg(callee_name:Text, arg_index:Index)
+sanitizer_api_arg("sanitize", 0).

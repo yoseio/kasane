@@ -1,0 +1,2 @@
+node:wrapper_call	-	strcpy	direct
+node:user_call	decl:copy_wrapper	copy_wrapper	direct
