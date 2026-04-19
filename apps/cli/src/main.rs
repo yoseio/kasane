@@ -79,7 +79,7 @@ fn run_demo() -> Result<(), Box<dyn Error>> {
 
 fn run_extract(command: &ExtractCommand) -> Result<(), Box<dyn Error>> {
     run_project_extraction(command)?;
-    println!("facts written to {}", command.facts_dir.display());
+    print_fact_inventory(&command.facts_dir)?;
     Ok(())
 }
 
@@ -110,6 +110,7 @@ fn run_analysis(
     let souffle = resolve_souffle();
 
     run_project_extraction(command)?;
+    print_fact_inventory(&command.facts_dir)?;
 
     run_command(
         &souffle,
@@ -330,5 +331,29 @@ fn print_if_exists(path: PathBuf) -> Result<(), Box<dyn Error>> {
         println!("== {} ==", path.display());
         println!("{}", fs::read_to_string(path)?);
     }
+    Ok(())
+}
+
+fn print_fact_inventory(facts_dir: &Path) -> Result<(), Box<dyn Error>> {
+    println!("facts written to {}", facts_dir.display());
+
+    let mut fact_files: Vec<String> = fs::read_dir(facts_dir)?
+        .filter_map(|entry| entry.ok())
+        .filter_map(|entry| {
+            let path = entry.path();
+            (path.extension().and_then(|ext| ext.to_str()) == Some("facts"))
+                .then(|| entry.file_name().to_string_lossy().into_owned())
+        })
+        .collect();
+
+    fact_files.sort();
+
+    if !fact_files.is_empty() {
+        println!("emitted fact files:");
+        for fact_file in fact_files {
+            println!("  {}", fact_file);
+        }
+    }
+
     Ok(())
 }

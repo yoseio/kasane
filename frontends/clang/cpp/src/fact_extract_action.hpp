@@ -3,6 +3,7 @@
 #include "clang/Tooling/Tooling.h"
 
 #include <memory>
+#include <string>
 
 namespace kasane::facts {
 class FactEmitter;
@@ -10,7 +11,16 @@ class FactEmitter;
 
 namespace kasane::frontends::clangcpp {
 
-std::unique_ptr<clang::tooling::FrontendActionFactory> create_fact_extract_action_factory(
-    kasane::facts::FactEmitter& emitter);
+struct TranslationUnitContext {
+  std::string tu_id;
+  std::string main_file;
+  std::string working_directory;
+  std::string output;
+  std::string command_line;
+};
 
-}  // namespace kasane::frontends::clangcpp
+std::unique_ptr<clang::tooling::FrontendActionFactory>
+create_fact_extract_action_factory(kasane::facts::FactEmitter &emitter,
+                                   TranslationUnitContext context);
+
+} // namespace kasane::frontends::clangcpp
