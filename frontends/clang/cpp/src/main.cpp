@@ -118,38 +118,6 @@ bool job_less(const ExtractJob &lhs, const ExtractJob &rhs) {
   return join_command_line(lhs.command) < join_command_line(rhs.command);
 }
 
-std::string quote_command_arg(std::string_view arg) {
-  if (arg.find_first_of(" \t\n\"\\") == std::string_view::npos) {
-    return std::string(arg);
-  }
-
-  std::string quoted;
-  quoted.push_back('"');
-  for (const char ch : arg) {
-    if (ch == '"' || ch == '\\') {
-      quoted.push_back('\\');
-    }
-    quoted.push_back(ch);
-  }
-  quoted.push_back('"');
-  return quoted;
-}
-
-std::string format_command_line(const CompileCommand &command) {
-  std::string rendered;
-  bool first = true;
-  for (const std::string &arg : command.CommandLine) {
-    if (!first) {
-      rendered.push_back(' ');
-    }
-
-    rendered.append(quote_command_arg(arg));
-    first = false;
-  }
-
-  return rendered;
-}
-
 std::uint64_t fnv1a64(std::string_view value, std::uint64_t hash) {
   constexpr std::uint64_t kPrime = 1099511628211ULL;
   for (const char byte : value) {
@@ -184,13 +152,33 @@ std::string normalize_optional_command_path(const std::string &value,
   return normalize_path(working_dir / candidate).string();
 }
 
+std::string extract_target_triple(const CompileCommand &command) {
+  for (std::size_t index = 0; index < command.CommandLine.size(); ++index) {
+    const std::string &arg = command.CommandLine[index];
+    if (arg == "-target" && (index + 1U) < command.CommandLine.size()) {
+      return command.CommandLine[index + 1U];
+    }
+
+    constexpr std::string_view kPrefix = "--target=";
+    if (arg.rfind(kPrefix.data(), 0) == 0) {
+      return arg.substr(kPrefix.size());
+    }
+  }
+
+  return {};
+}
+
 kasane::frontends::clangcpp::TranslationUnitContext
 build_translation_unit_context(const ExtractJob &job) {
   const fs::path working_dir = normalize_path(job.command.Directory);
   const std::string main_file = job.resolved_file.string();
   const std::string output =
       normalize_optional_command_path(job.command.Output, working_dir);
-  const std::string command_line = format_command_line(job.command);
+  const std::string compiler =
+      job.command.CommandLine.empty()
+          ? std::string()
+          : normalize_optional_command_path(job.command.CommandLine.front(),
+                                            working_dir);
 
   std::uint64_t hash = 14695981039346656037ULL;
   mix_string(hash, main_file);
@@ -200,9 +188,13 @@ build_translation_unit_context(const ExtractJob &job) {
     mix_string(hash, arg);
   }
 
+  if (hash == 0U) {
+    hash = 1U;
+  }
+
   return kasane::frontends::clangcpp::TranslationUnitContext{
-      "tu-" + to_hex(hash), main_file, working_dir.string(), output,
-      command_line,
+      "tu:" + to_hex(hash), main_file, working_dir.string(), compiler,
+      extract_target_triple(job.command), "fnv1a64:" + to_hex(hash),
   };
 }
 
@@ -336,14 +328,22 @@ int main(int argc, char **argv) {
       llvm::errs() << "[" << (index + 1) << "/" << jobs.size()
                    << "] extracting " << job.resolved_file.string() << "\n";
 
-      emitter.emit_translation_unit(context.tu_id, context.main_file,
-                                    context.working_directory, context.output,
-                                    context.command_line);
-      emitter.emit_file(context.tu_id, context.main_file, "main");
+      const kasane::facts::Id root_file_id = emitter.intern_file(context.main_file);
+      emitter.emit_translation_unit(context.tu_id, root_file_id,
+                                    context.working_directory,
+                                    context.compiler, context.target_triple,
+                                    context.command_hash);
+      emitter.emit_tu_file(context.tu_id, root_file_id);
+      for (std::size_t arg_index = 0; arg_index < job.command.CommandLine.size();
+           ++arg_index) {
+        emitter.emit_compile_arg(context.tu_id, arg_index,
+                                 job.command.CommandLine[arg_index]);
+      }
       for (const CommandLineMacroFact &macro :
            collect_command_line_macros(job.command)) {
-        emitter.emit_macro(context.tu_id, macro.kind, macro.name, macro.value,
-                           "<command line>", 0);
+        const kasane::facts::Id macro_id = emitter.next_macro_id();
+        emitter.emit_macro(macro_id, macro.name, false,
+                           macro.value.empty() ? 0U : 1U);
       }
 
       std::unique_ptr<clang::tooling::FrontendActionFactory> action_factory =
@@ -362,7 +362,7 @@ int main(int argc, char **argv) {
       const int result = tool.run(action_factory.get());
       if (result != 0) {
         ++failed_jobs;
-        emitter.emit_diag(context.tu_id, "error", context.main_file, 0, 0,
+        emitter.emit_diag(context.tu_id, root_file_id, 0, 0, "error",
                           "extraction failed with status " +
                               std::to_string(result));
         llvm::errs() << "kasane-clang-extractor: extraction failed for "

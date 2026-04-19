@@ -2,7 +2,7 @@
 // Extraction layer only. Derived relations such as taint, local flow,
 // summaries, points-to, or CPG overlays belong in analyses/.
 
-.type Id = number
+.type Id = symbol
 .type Text = symbol
 .type Bool = number
 .type Index = number
@@ -34,10 +34,14 @@
 
 // 4. Semantic primitives for analysis
 .decl ref(node_id:Id, decl_id:Id, role:Text)
+.decl use(node_id:Id, decl_id:Id)
+.decl def(node_id:Id, decl_id:Id)
 .decl assign(node_id:Id, lhs_node_id:Id, rhs_node_id:Id, op_kind:Text)
 .decl call(node_id:Id, callee_decl_id:Id, callee_name:Text, dispatch_kind:Text)
 .decl call_arg(call_node_id:Id, arg_index:Index, arg_node_id:Id)
+.decl return_expr(return_node_id:Id, expr_node_id:Id)
 .decl return_value(return_node_id:Id, expr_node_id:Id)
+.decl type_of(node_id:Id, type_id:Id)
 .decl literal(node_id:Id, literal_kind:Text, raw_text:Text)
 .decl member_access(node_id:Id, base_node_id:Id, field_decl_id:Id, access_kind:Text)
 

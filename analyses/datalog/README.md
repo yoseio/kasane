@@ -1,22 +1,16 @@
-# Datalog demo
+# Datalog analyses
 
-The repository currently includes a very small bootstrap analysis over the demo facts in `facts/`:
+The Datalog layer consumes canonical v0 facts from `schemas/facts/v0.dl`.
 
-- `func(name, line)`
-- `param(func, var, idx)`
-- `assign(func, dst, src)`
-- `callsite(func, line, callee)`
-- `return_var(func, var)`
+The entry point is `rules.dl`, which is intentionally small and delegates to:
 
-The current `rules.dl` computes:
+- `inputs.dl` for the input relations loaded from `.facts`
+- `lib/` for reusable helper relations such as local CFG-based flow
+- `packs/` for analysis-specific rules
 
-- `dangerous_call(func, line, callee)` for direct `strcpy` calls
-- `tainted_return(func)` for a tiny intraprocedural propagation model
+The current packs include:
 
-This bootstrap demo is intentionally smaller than the planned canonical schema.
-The target extraction contract for future analyses is:
+- `packs/local_taint.dl` for intraprocedural taint to sinks and returns
+- `packs/unsafe_c_api.dl` for banned direct C API calls such as `strcpy`
 
-- `schemas/facts/v0.md`
-- `schemas/facts/v0.dl`
-
-As Kasane grows, the Datalog layer should import the canonical schema and derive richer relations from it, rather than expanding the bootstrap schema indefinitely.
+Regression fixtures for the rule layer live under `testdata/regression/`.

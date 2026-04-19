@@ -1,0 +1,19 @@
+.once
+
+.decl function_entry(function_decl_id:Id, node_id:Id)
+function_entry(F, N) :- node(N, _, F, "synthetic", "FunctionEntry", _).
+
+.decl function_exit(function_decl_id:Id, node_id:Id)
+function_exit(F, N) :- node(N, _, F, "synthetic", "FunctionExit", _).
+
+.decl local_copy(node_id:Id, src_decl_id:Id, dst_decl_id:Id)
+local_copy(Node, Src, Dst) :- def(Node, Dst), use(Node, Src).
+
+.decl tainted_before(node_id:Id, decl_id:Id)
+.decl tainted_after(node_id:Id, decl_id:Id)
+
+tainted_before(Entry, Param) :- function_entry(F, Entry), param_decl(Param, F, _).
+tainted_before(Succ, Decl) :- tainted_after(Node, Decl), cfg_edge(Node, Succ, _).
+
+tainted_after(Node, Decl) :- tainted_before(Node, Decl).
+tainted_after(Node, Dst) :- local_copy(Node, Src, Dst), tainted_before(Node, Src).

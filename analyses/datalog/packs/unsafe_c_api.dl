@@ -1,0 +1,17 @@
+.once
+
+.decl banned_c_api(name:Text)
+banned_c_api("gets").
+banned_c_api("sprintf").
+banned_c_api("strcat").
+banned_c_api("strcpy").
+banned_c_api("vsprintf").
+
+.decl dangerous_call(function_name:Text, callee_name:Text, call_node_id:Id)
+dangerous_call(Func, Callee, CallNode) :-
+  call(CallNode, _, Callee, _),
+  banned_c_api(Callee),
+  node(CallNode, _, F, _, _, _),
+  function_name(F, Func).
+
+.output dangerous_call

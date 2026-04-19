@@ -1,0 +1,29 @@
+.once
+
+.decl pointer_like_type(type_id:Id)
+pointer_like_type(T) :- type(T, "pointer", _, _, _, _).
+pointer_like_type(T) :- type(T, "array", _, _, _, _).
+
+.decl tainted_sink(function_name:Text, callee_name:Text, arg_index:Index, var_name:Text)
+tainted_sink(Func, Callee, ArgIndex, Var) :-
+  call(CallNode, _, Callee, _),
+  node(CallNode, _, F, _, _, _),
+  function_name(F, Func),
+  call_arg(CallNode, ArgIndex, ArgNode),
+  type_of(ArgNode, TypeId),
+  pointer_like_type(TypeId),
+  ref(ArgNode, VarDecl, "read"),
+  tainted_before(CallNode, VarDecl),
+  variable_name(VarDecl, Var).
+
+.decl tainted_return(function_name:Text, var_name:Text)
+tainted_return(Func, Var) :-
+  return_expr(ReturnNode, ExprNode),
+  node(ReturnNode, _, F, _, _, _),
+  function_name(F, Func),
+  ref(ExprNode, VarDecl, "read"),
+  tainted_before(ReturnNode, VarDecl),
+  variable_name(VarDecl, Var).
+
+.output tainted_sink
+.output tainted_return

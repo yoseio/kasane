@@ -84,6 +84,9 @@ fn run_extract(command: &ExtractCommand) -> Result<(), Box<dyn Error>> {
 }
 
 fn run_project_extraction(command: &ExtractCommand) -> Result<(), Box<dyn Error>> {
+    if command.facts_dir.exists() {
+        fs::remove_dir_all(&command.facts_dir)?;
+    }
     fs::create_dir_all(&command.facts_dir)?;
 
     let extractor = resolve_extractor();
@@ -115,6 +118,7 @@ fn run_analysis(
     run_command(
         &souffle,
         &[
+            OsString::from("-w"),
             format!("-F{}", command.facts_dir.display()).into(),
             format!("-D{}", out_dir.display()).into(),
             rules.as_os_str().to_owned(),
@@ -123,6 +127,7 @@ fn run_analysis(
     )?;
 
     print_if_exists(out_dir.join("dangerous_call.csv"))?;
+    print_if_exists(out_dir.join("tainted_sink.csv"))?;
     print_if_exists(out_dir.join("tainted_return.csv"))?;
 
     Ok(())

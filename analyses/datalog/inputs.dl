@@ -1,0 +1,14 @@
+.once
+
+.input decl
+.input param_decl
+.input type
+.input node
+.input cfg_edge
+.input ref
+.input use
+.input def
+.input call
+.input call_arg
+.input return_expr
+.input type_of

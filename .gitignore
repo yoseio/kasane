@@ -17,9 +17,6 @@ target/
 .DS_Store
 
 # Analysis artifacts
-facts/
 out/
 *.facts
 *.csv
-
-!schemas/facts/

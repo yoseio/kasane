@@ -14,7 +14,7 @@ This repository is organized around architecture layers rather than language alo
 The included minimum demo is intentionally small:
 
 - `frontends/clang/cpp/src/main.cpp` runs build-aware extraction through `compile_commands.json`.
-- `analyses/datalog/rules.dl` runs a tiny Soufflé analysis over those facts.
+- `analyses/datalog/rules.dl` runs split Soufflé analyses over canonical v0 facts.
 - `apps/cli/src/main.rs` orchestrates the extractor and Soufflé.
 
 The repository also includes a build-aware extraction path driven by
