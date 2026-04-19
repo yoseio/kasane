@@ -1,180 +1,216 @@
-#include "clang/AST/ASTConsumer.h"
-#include "clang/AST/RecursiveASTVisitor.h"
-#include "clang/Frontend/CompilerInstance.h"
-#include "clang/Frontend/FrontendActions.h"
+#include "fact_extract_action.hpp"
+
+#include "clang/Tooling/CompilationDatabase.h"
 #include "clang/Tooling/Tooling.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include "kasane/facts/fact_emitter.hpp"
 
+#include <algorithm>
+#include <exception>
 #include <filesystem>
-#include <fstream>
-#include <iterator>
-#include <memory>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
-using namespace clang;
-using namespace clang::tooling;
+namespace fs = std::filesystem;
+using clang::tooling::ClangTool;
+using clang::tooling::CompilationDatabase;
+using clang::tooling::CompileCommand;
 
 namespace {
 
-std::string read_all(const std::string& path) {
-  std::ifstream ifs(path);
-  return std::string(std::istreambuf_iterator<char>(ifs), std::istreambuf_iterator<char>());
+struct ExtractJob {
+  CompileCommand command;
+  fs::path resolved_file;
+};
+
+class SingleCommandCompilationDatabase : public CompilationDatabase {
+public:
+  explicit SingleCommandCompilationDatabase(CompileCommand command) : command_(std::move(command)) {}
+
+  std::vector<CompileCommand> getCompileCommands(llvm::StringRef /*file_path*/) const override {
+    return {command_};
+  }
+
+  std::vector<std::string> getAllFiles() const override {
+    return {command_.Filename};
+  }
+
+private:
+  CompileCommand command_;
+};
+
+fs::path normalize_path(const fs::path& path) {
+  std::error_code err;
+  const fs::path canonical = fs::weakly_canonical(path, err);
+  if (!err) {
+    return canonical.lexically_normal();
+  }
+
+  return fs::absolute(path).lexically_normal();
 }
 
-class MiniVisitor : public RecursiveASTVisitor<MiniVisitor> {
-public:
-  MiniVisitor(ASTContext* ctx, kasane::facts::FactEmitter& out) : ctx_(ctx), out_(out) {}
-
-  bool TraverseFunctionDecl(FunctionDecl* function_decl) {
-    if (function_decl == nullptr) {
-      return true;
-    }
-
-    const bool prev_in_function = in_function_;
-    const std::string prev_function_name = current_function_;
-
-    if (function_decl->hasBody() &&
-        ctx_->getSourceManager().isWrittenInMainFile(function_decl->getLocation())) {
-      in_function_ = true;
-      current_function_ = function_decl->getQualifiedNameAsString();
-
-      const FullSourceLoc loc = ctx_->getFullLoc(function_decl->getBeginLoc());
-      if (loc.isValid()) {
-        out_.emit_function(current_function_, loc.getSpellingLineNumber());
-      }
-
-      for (unsigned index = 0; index < function_decl->getNumParams(); ++index) {
-        const ParmVarDecl* param_decl = function_decl->getParamDecl(index);
-        out_.emit_param(current_function_, param_decl->getNameAsString(), index + 1U);
-      }
-    }
-
-    RecursiveASTVisitor<MiniVisitor>::TraverseFunctionDecl(function_decl);
-
-    in_function_ = prev_in_function;
-    current_function_ = prev_function_name;
-    return true;
+fs::path resolve_command_file(const CompileCommand& command) {
+  const fs::path file_path(command.Filename);
+  if (file_path.is_absolute()) {
+    return normalize_path(file_path);
   }
 
-  bool VisitVarDecl(VarDecl* var_decl) {
-    if (!in_function_ || !var_decl->hasInit()) {
-      return true;
-    }
+  return normalize_path(fs::path(command.Directory) / file_path);
+}
 
-    const Expr* init = var_decl->getInit()->IgnoreParenImpCasts();
-    if (const auto* rhs = dyn_cast<DeclRefExpr>(init)) {
-      out_.emit_assign(current_function_, var_decl->getNameAsString(),
-                       rhs->getNameInfo().getAsString());
-    }
+bool is_within_directory(const fs::path& candidate, const fs::path& directory) {
+  auto candidate_it = candidate.begin();
+  auto directory_it = directory.begin();
 
-    return true;
+  for (; candidate_it != candidate.end() && directory_it != directory.end();
+       ++candidate_it, ++directory_it) {
+    if (*candidate_it != *directory_it) {
+      return false;
+    }
   }
 
-  bool VisitBinaryOperator(BinaryOperator* op) {
-    if (!in_function_ || !op->isAssignmentOp()) {
-      return true;
-    }
+  return directory_it == directory.end();
+}
 
-    const Expr* lhs_expr = op->getLHS()->IgnoreParenImpCasts();
-    const Expr* rhs_expr = op->getRHS()->IgnoreParenImpCasts();
-
-    const auto* lhs = dyn_cast<DeclRefExpr>(lhs_expr);
-    const auto* rhs = dyn_cast<DeclRefExpr>(rhs_expr);
-    if (lhs != nullptr && rhs != nullptr) {
-      out_.emit_assign(current_function_, lhs->getNameInfo().getAsString(),
-                       rhs->getNameInfo().getAsString());
-    }
-
-    return true;
+bool matches_selection(const fs::path& candidate, const fs::path& selection_root) {
+  std::error_code err;
+  if (!fs::is_directory(selection_root, err)) {
+    return candidate == selection_root;
   }
 
-  bool VisitCallExpr(CallExpr* call) {
-    if (!in_function_) {
-      return true;
-    }
+  return is_within_directory(candidate, selection_root);
+}
 
-    const FunctionDecl* callee = call->getDirectCallee();
-    if (callee == nullptr) {
-      return true;
-    }
+std::string join_command_line(const CompileCommand& command) {
+  std::string joined;
+  for (const std::string& arg : command.CommandLine) {
+    joined.append(arg);
+    joined.push_back('\x1f');
+  }
+  return joined;
+}
 
-    const FullSourceLoc loc = ctx_->getFullLoc(call->getExprLoc());
-    if (!loc.isValid()) {
-      return true;
-    }
-
-    out_.emit_callsite(current_function_, loc.getSpellingLineNumber(),
-                       callee->getQualifiedNameAsString());
-    return true;
+bool job_less(const ExtractJob& lhs, const ExtractJob& rhs) {
+  if (lhs.resolved_file.generic_string() != rhs.resolved_file.generic_string()) {
+    return lhs.resolved_file.generic_string() < rhs.resolved_file.generic_string();
   }
 
-  bool VisitReturnStmt(ReturnStmt* ret) {
-    if (!in_function_ || ret->getRetValue() == nullptr) {
-      return true;
+  if (lhs.command.Directory != rhs.command.Directory) {
+    return lhs.command.Directory < rhs.command.Directory;
+  }
+
+  if (lhs.command.Output != rhs.command.Output) {
+    return lhs.command.Output < rhs.command.Output;
+  }
+
+  return join_command_line(lhs.command) < join_command_line(rhs.command);
+}
+
+std::vector<ExtractJob> collect_jobs(const CompilationDatabase& database,
+                                     const fs::path& selection_root) {
+  std::vector<ExtractJob> jobs;
+  for (CompileCommand command : database.getAllCompileCommands()) {
+    const fs::path resolved_file = resolve_command_file(command);
+    if (!matches_selection(resolved_file, selection_root)) {
+      continue;
     }
 
-    const Expr* expr = ret->getRetValue()->IgnoreParenImpCasts();
-    if (const auto* decl_ref = dyn_cast<DeclRefExpr>(expr)) {
-      out_.emit_return_var(current_function_, decl_ref->getNameInfo().getAsString());
-    }
-
-    return true;
+    jobs.push_back(ExtractJob{std::move(command), resolved_file});
   }
 
-private:
-  ASTContext* ctx_;
-  kasane::facts::FactEmitter& out_;
-  bool in_function_ = false;
-  std::string current_function_;
-};
+  std::sort(jobs.begin(), jobs.end(), job_less);
+  return jobs;
+}
 
-class MiniConsumer : public ASTConsumer {
-public:
-  MiniConsumer(ASTContext* ctx, kasane::facts::FactEmitter& out) : visitor_(ctx, out) {}
-
-  void HandleTranslationUnit(ASTContext& ctx) override {
-    visitor_.TraverseDecl(ctx.getTranslationUnitDecl());
-  }
-
-private:
-  MiniVisitor visitor_;
-};
-
-class MiniAction : public ASTFrontendAction {
-public:
-  explicit MiniAction(kasane::facts::FactEmitter& out) : out_(out) {}
-
-  std::unique_ptr<ASTConsumer> CreateASTConsumer(CompilerInstance& ci,
-                                                 llvm::StringRef /*unused*/) override {
-    return std::make_unique<MiniConsumer>(&ci.getASTContext(), out_);
-  }
-
-private:
-  kasane::facts::FactEmitter& out_;
-};
+void print_usage() {
+  llvm::errs() << "usage: kasane-clang-extractor -p <build_dir> <source_root> <facts_dir>\n";
+}
 
 }  // namespace
 
 int main(int argc, char** argv) {
-  if (argc != 3) {
-    llvm::errs() << "usage: kasane-mini-extractor <input.cpp> <facts_dir>\n";
+  if (argc == 2 && (std::string_view(argv[1]) == "--help" || std::string_view(argv[1]) == "-h")) {
+    print_usage();
+    return 0;
+  }
+
+  if (argc != 5 || std::string_view(argv[1]) != "-p") {
+    print_usage();
     return 1;
   }
 
   try {
-    std::filesystem::create_directories(argv[2]);
-    const std::string code = read_all(argv[1]);
-    kasane::facts::FactEmitter emitter(argv[2]);
+    const fs::path build_dir = normalize_path(argv[2]);
+    const fs::path source_root = normalize_path(argv[3]);
+    const fs::path facts_dir(argv[4]);
 
-    std::vector<std::string> args = {"-std=c++17"};
-    const bool ok = runToolOnCodeWithArgs(std::make_unique<MiniAction>(emitter), code, args, argv[1]);
+    if (!fs::exists(build_dir)) {
+      llvm::errs() << "kasane-clang-extractor: build directory does not exist: " << build_dir.string()
+                   << "\n";
+      return 2;
+    }
 
-    return ok ? 0 : 2;
+    if (!fs::exists(source_root)) {
+      llvm::errs() << "kasane-clang-extractor: source root does not exist: " << source_root.string()
+                   << "\n";
+      return 2;
+    }
+
+    std::string error_message;
+    std::unique_ptr<CompilationDatabase> database =
+        CompilationDatabase::loadFromDirectory(build_dir.string(), error_message);
+    if (!database) {
+      llvm::errs() << "kasane-clang-extractor: failed to load compile_commands.json from "
+                   << build_dir.string() << ": " << error_message << "\n";
+      return 2;
+    }
+
+    const std::vector<ExtractJob> jobs = collect_jobs(*database, source_root);
+    if (jobs.empty()) {
+      llvm::errs() << "kasane-clang-extractor: no compile commands matched "
+                   << source_root.string() << "\n";
+      return 2;
+    }
+
+    fs::create_directories(facts_dir);
+    kasane::facts::FactEmitter emitter(facts_dir);
+    std::unique_ptr<clang::tooling::FrontendActionFactory> action_factory =
+        kasane::frontends::clangcpp::create_fact_extract_action_factory(emitter);
+    unsigned failed_jobs = 0;
+
+    for (std::size_t index = 0; index < jobs.size(); ++index) {
+      const ExtractJob& job = jobs[index];
+      llvm::errs() << "[" << (index + 1) << "/" << jobs.size() << "] extracting "
+                   << job.resolved_file.string() << "\n";
+
+      SingleCommandCompilationDatabase single_database(job.command);
+      std::vector<std::string> sources = {job.command.Filename};
+      ClangTool tool(single_database, sources);
+      tool.clearArgumentsAdjusters();
+      tool.appendArgumentsAdjuster(clang::tooling::getClangStripOutputAdjuster());
+      tool.appendArgumentsAdjuster(clang::tooling::getClangSyntaxOnlyAdjuster());
+
+      const int result = tool.run(action_factory.get());
+      if (result != 0) {
+        ++failed_jobs;
+        llvm::errs() << "kasane-clang-extractor: extraction failed for "
+                     << job.resolved_file.string() << " with status " << result << "\n";
+      }
+    }
+
+    if (failed_jobs != 0U) {
+      llvm::errs() << "kasane-clang-extractor: " << failed_jobs << " extraction job(s) failed out of "
+                   << jobs.size() << "\n";
+      return 3;
+    }
+
+    return 0;
   } catch (const std::exception& ex) {
-    llvm::errs() << "kasane-mini-extractor: " << ex.what() << "\n";
-    return 3;
+    llvm::errs() << "kasane-clang-extractor: " << ex.what() << "\n";
+    return 4;
   }
 }

@@ -21,7 +21,7 @@ lint:
 
 demo:
 	cmake --preset dev
-	cmake --build --preset dev --target kasane-mini-extractor
+	cmake --build --preset dev --target kasane-clang-extractor
 	cargo run -p kasane-cli -- demo
 
 clean:

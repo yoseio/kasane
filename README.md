@@ -12,9 +12,12 @@ This repository is organized around architecture layers rather than language alo
 
 The included minimum demo is intentionally small:
 
-- `frontends/clang/cpp/src/main.cpp` extracts a few facts from a single C++ file.
+- `frontends/clang/cpp/src/main.cpp` runs build-aware extraction through `compile_commands.json`.
 - `analyses/datalog/rules.dl` runs a tiny Soufflé analysis over those facts.
 - `apps/cli/src/main.rs` orchestrates the extractor and Soufflé.
+
+The repository also includes a build-aware extraction path driven by
+`compile_commands.json` for real CMake projects.
 
 
 ## Devcontainer
@@ -45,24 +48,39 @@ cargo build --workspace
 
 ## Demo flow
 
-The demo input is `testdata/synthetic/sample.cpp`.
+The demo input is the CMake fixture at `testdata/synthetic`.
 
 ```bash
 # Build the Clang extractor (requires LLVM/Clang CMake packages)
 cmake --preset dev
-cmake --build --preset dev --target kasane-mini-extractor
+cmake --build --preset dev --target kasane-clang-extractor
 
-# Run the Rust CLI demo
+# Run the Rust CLI demo. It configures and builds the synthetic CMake fixture
+# before extracting facts and invoking Souffle.
 cargo run -p kasane-cli -- demo
 ```
 
 If the extractor is not at the default CMake path, point the CLI at it:
 
 ```bash
-KASANE_EXTRACTOR=/path/to/kasane-mini-extractor cargo run -p kasane-cli -- demo
+KASANE_EXTRACTOR=/path/to/kasane-clang-extractor cargo run -p kasane-cli -- demo
 ```
 
 If `souffle` is not on your `PATH`, set `KASANE_SOUFFLE` as well.
+
+## Build-aware extraction
+
+The sample CMake fixture lives at `testdata/cmake/hello`.
+
+```bash
+cmake -S testdata/cmake/hello -B build/fixtures/hello
+cmake --build build/fixtures/hello
+
+# facts_dir defaults to build/fixtures/hello/kasane/facts
+cargo run -p kasane-cli -- extract -p build/fixtures/hello testdata/cmake/hello
+```
+
+To override the extractor location, set `KASANE_EXTRACTOR`.
 
 ## Notes
 

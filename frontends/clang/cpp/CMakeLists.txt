@@ -8,17 +8,23 @@ if(NOT KASANE_LLVM_CLANG_FOUND)
   return()
 endif()
 
-add_executable(kasane-mini-extractor
+add_executable(kasane-clang-extractor
   src/main.cpp
+  src/fact_extract_action.cpp
 )
 
-target_include_directories(kasane-mini-extractor
+target_include_directories(kasane-clang-extractor
   SYSTEM PRIVATE
     ${KASANE_LLVM_INCLUDE_DIRS}
     ${KASANE_CLANG_INCLUDE_DIRS}
 )
 
-target_link_libraries(kasane-mini-extractor
+target_include_directories(kasane-clang-extractor
+  PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+target_link_libraries(kasane-clang-extractor
   PRIVATE
     kasane::project_options
     kasane::facts
@@ -37,4 +43,4 @@ target_link_libraries(kasane-mini-extractor
     LLVMSupport
 )
 
-kasane_install_target(kasane-mini-extractor)
+kasane_install_target(kasane-clang-extractor)
